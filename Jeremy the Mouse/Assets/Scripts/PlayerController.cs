@@ -27,12 +27,15 @@ public class PlayerController : MonoBehaviour
 	private float currentTicks = 0f;
 
 	private Rigidbody2D rb2D;
+	private Animator anim;
 
 	void Awake ()
 	{
 		rb2D = GetComponent<Rigidbody2D>();
+		anim = GetComponent<Animator>();
 
 		if (rb2D == null) Debug.LogError("No Rigidbody2D component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
+		if (anim == null) Debug.LogError("No Animator component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
 	}
 
 	void Start ()
@@ -55,7 +58,8 @@ public class PlayerController : MonoBehaviour
 		else if ((Input.GetKey (KeyCode.A) || Input.GetKey (KeyCode.LeftArrow)) && !isPreparingToJump) moving = true;
 		else moving = false;
 
-
+		anim.SetBool("isMoving", moving);
+		anim.SetBool("isGrounded", grounded);
 
 		if ((airControl && !grounded) || grounded)
 		{
