@@ -8,11 +8,14 @@ public class PlayerController : MonoBehaviour
 	public float crouchSpeed = 5f;
 	public float minJumpForce = 500f;
 	[Range(500f, 2000f)]
-	public float maxJumpForce = 1000f;
+	public float maxJumpForce = 1500f;
 	public float jumpPrepareTime = 2f;
 	public float numberOfTicks = 4f;
 	public bool airControl;
+
 	public Transform groundCheck;
+	public CapsuleCollider2D walkCollider;
+	public CapsuleCollider2D crouchCollider;
 
 	private bool moving = false;
 	private Vector3 direction;
@@ -36,6 +39,8 @@ public class PlayerController : MonoBehaviour
 
 		if (rb2D == null) Debug.LogError("No Rigidbody2D component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
 		if (anim == null) Debug.LogError("No Animator component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
+		if (walkCollider == null) Debug.LogError("No walk Collider2D component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
+		if (crouchCollider == null) Debug.LogError("No crouch Collider2D component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
 	}
 
 	void Start ()
@@ -43,6 +48,8 @@ public class PlayerController : MonoBehaviour
 		facingRight = (transform.localScale.x == 1);
 		currentJumpForce = minJumpForce;
 		currentMoveSpeed = moveSpeed;
+		walkCollider.enabled = true;
+		crouchCollider.enabled = false;
 	}
 
 	void Update ()
@@ -70,10 +77,14 @@ public class PlayerController : MonoBehaviour
 		if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.LeftControl))
 		{
 			currentMoveSpeed = crouchSpeed;
+			walkCollider.enabled = false;
+			crouchCollider.enabled = true;
 		}
 		else
 		{
 			currentMoveSpeed = moveSpeed;
+			walkCollider.enabled = true;
+			crouchCollider.enabled = false;
 
 			if ((Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) && grounded)
 			{
@@ -93,7 +104,7 @@ public class PlayerController : MonoBehaviour
 				{
 					currentJumpForce += (maxJumpForce - minJumpForce) / numberOfTicks;
 					currentTicks++;
-					Debug.Log("TICK-TACK");
+					//Debug.Log("TICK-TACK");
 					currentTime = 0f;
 				}
 
