@@ -23,10 +23,10 @@ public class HangingPlayerTest : MonoBehaviour {
 	// Update is called once per frame
 	void Update ()
 	{
-		if (Input.GetKeyDown(KeyCode.A))
+		if (Input.GetKey(KeyCode.A))
 		{
 			rb2D.AddTorque(-hangRotatePower);
-		} else if (Input.GetKeyDown(KeyCode.D))
+		} else if (Input.GetKey(KeyCode.D))
 		{
 			rb2D.AddTorque(hangRotatePower);
 		}

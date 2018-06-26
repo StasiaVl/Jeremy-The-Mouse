@@ -3,20 +3,43 @@ using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
-	public LayerMask ground;
+	// ============================== PUBLIC FIELDS ==============================
+	[Header("Move settings")]
 	public float moveSpeed = 10f;
 	public float crouchSpeed = 5f;
+
+	[Space(10)]
+	[Header("Jump settings")]
+	public LayerMask ground;
 	public float minJumpForce = 500f;
-	[Range(500f, 2000f)]
 	public float maxJumpForce = 1500f;
 	public float jumpPrepareTime = 2f;
 	public float numberOfTicks = 4f;
 	public bool airControl;
 
-	public Transform groundCheck;
+	[Space(10)]
+	[Header("Object assignment")]
 	public CapsuleCollider2D walkCollider;
 	public CapsuleCollider2D crouchCollider;
+	public PolygonCollider2D hangingCollider;
+	public BoxCollider2D groundCollider;
+	public LayerMask pushableLayers;
 
+	[Space(10)]
+	[Header("Working keys")]
+	public KeyCode moveRightKey = KeyCode.D;
+	public KeyCode moveRightAlternativeKey = KeyCode.RightArrow;
+	public KeyCode moveLeftKey = KeyCode.A;
+	public KeyCode moveLeftAlternativeKey = KeyCode.LeftArrow;
+	public KeyCode crouchKey = KeyCode.S;
+	public KeyCode crouchAlternativeKey = KeyCode.LeftControl;
+	public KeyCode jumpKey = KeyCode.W;
+	public KeyCode jumpAlternativeKey = KeyCode.Space;
+	public KeyCode pushKey = KeyCode.RightShift;
+	public KeyCode pushAlternativeKey = KeyCode.Z;
+	// ============================== [end of PUBLIC FIELDS] ==============================
+
+	// ============================== PRIVATE FIELDS ==============================
 	private bool moving = false;
 	private Vector3 direction;
 	private bool facingRight = false;
@@ -29,9 +52,16 @@ public class PlayerController : MonoBehaviour
 	private float currentTime = 0f;
 	private float currentTicks = 0f;
 
+	private bool hanging = false;
+
 	private Rigidbody2D rb2D;
 	private Animator anim;
+	// ============================== [end of PRIVATE FIELDS] ==============================
 
+
+	/* ====================================== *
+	 *                 AWAKE                  *
+	 * ====================================== */
 	void Awake ()
 	{
 		rb2D = GetComponent<Rigidbody2D>();
@@ -41,8 +71,12 @@ public class PlayerController : MonoBehaviour
 		if (anim == null) Debug.LogError("No Animator component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
 		if (walkCollider == null) Debug.LogError("No walk Collider2D component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
 		if (crouchCollider == null) Debug.LogError("No crouch Collider2D component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
+		if (hangingCollider == null) Debug.LogError("No hanging PolygonCollider2D component found attached to this gameObject! [PLAYER_CONTROLLER.CS]");
 	}
 
+	/* ====================================== *
+	 *                 START                  *
+	 * ====================================== */
 	void Start ()
 	{
 		facingRight = (transform.localScale.x == 1);
@@ -50,23 +84,32 @@ public class PlayerController : MonoBehaviour
 		currentMoveSpeed = moveSpeed;
 		walkCollider.enabled = true;
 		crouchCollider.enabled = false;
+		hangingCollider.enabled = false;
 	}
 
+	/* ====================================== *
+	 *                 UPDATE                 *
+	 * ====================================== */
 	void Update ()
 	{
-		grounded = Physics2D.Linecast (transform.position, groundCheck.position, ground);
+		//grounded = Physics2D.Linecast (transform.position, groundCheck.position, ground);
+		//ContactFilter2D filter;
+		//filter
+		RaycastHit2D[] hitObjects = new RaycastHit2D[20];
+		grounded = (groundCollider.Cast(Vector2.zero, hitObjects) > 0) ? true : false;
 
 		direction = new Vector3 (0, 0, 0);
 
-		if ((Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow)) && !isPreparingToJump) facingRight = true;
-		if ((Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow)) && !isPreparingToJump) facingRight = false;
+		if ((Input.GetKeyDown(moveRightKey) || Input.GetKeyDown(moveRightAlternativeKey)) && !isPreparingToJump) facingRight = true;
+		if ((Input.GetKeyDown(moveLeftKey) || Input.GetKeyDown(moveLeftAlternativeKey)) && !isPreparingToJump) facingRight = false;
 
-		if ((Input.GetKey (KeyCode.D) || Input.GetKey (KeyCode.RightArrow)) && !isPreparingToJump) moving = true;
-		else if ((Input.GetKey (KeyCode.A) || Input.GetKey (KeyCode.LeftArrow)) && !isPreparingToJump) moving = true;
+		if ((Input.GetKey (moveRightKey) || Input.GetKey (moveRightAlternativeKey)) && !isPreparingToJump) moving = true;
+		else if ((Input.GetKey (moveLeftKey) || Input.GetKey (moveLeftAlternativeKey)) && !isPreparingToJump) moving = true;
 		else moving = false;
 
 		anim.SetBool("isMoving", moving);
 		anim.SetBool("isGrounded", grounded);
+		anim.SetBool("isHanging", hanging);
 
 		if ((airControl && !grounded) || grounded)
 		{
@@ -74,11 +117,28 @@ public class PlayerController : MonoBehaviour
 			direction += (moving ? new Vector3(transform.localScale.x,0,0) : Vector3.zero);
 		}
 
-		if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.LeftControl))
+// =============== PUSH DEBUG ===================
+		Debug.DrawLine(transform.position, transform.position + Vector3.right * 2f);
+// ============ ENDOF PUSH DEBUG ================
+
+		if (Input.GetKey(crouchKey) || Input.GetKey(crouchAlternativeKey))
 		{
 			currentMoveSpeed = crouchSpeed;
 			walkCollider.enabled = false;
 			crouchCollider.enabled = true;
+		}
+		else if (Input.GetKeyDown(pushKey) || Input.GetKeyDown(pushAlternativeKey))
+		{
+			RaycastHit2D hit = Physics2D.Raycast(transform.position, (facingRight) ? Vector3.right : Vector3.left, 2f, pushableLayers);
+			if (hit != null)
+			{
+				PushableObject pushObject = hit.transform.gameObject.GetComponent<PushableObject>();
+
+				if (pushObject != null)
+				{
+					pushObject.Push(transform.position);
+				}
+			}
 		}
 		else
 		{
@@ -86,7 +146,7 @@ public class PlayerController : MonoBehaviour
 			walkCollider.enabled = true;
 			crouchCollider.enabled = false;
 
-			if ((Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) && grounded)
+			if ((Input.GetKeyDown(jumpKey) || Input.GetKeyDown(jumpAlternativeKey)) && grounded)
 			{
 				isPreparingToJump = true;
 				currentJumpForce = minJumpForce;
@@ -96,7 +156,7 @@ public class PlayerController : MonoBehaviour
 
 			bool forceJump = false;
 
-			if ((Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) && isPreparingToJump)
+			if ((Input.GetKey(jumpKey) || Input.GetKey(jumpAlternativeKey)) && isPreparingToJump)
 			{
 				currentTime += Time.deltaTime;
 
@@ -114,7 +174,7 @@ public class PlayerController : MonoBehaviour
 				}
 			}
 
-			if (((Input.GetKeyUp(KeyCode.Space)  || Input.GetKeyUp(KeyCode.W) || Input.GetKeyUp(KeyCode.UpArrow)) && grounded && isPreparingToJump) || forceJump)
+			if (((Input.GetKeyUp(jumpKey) || Input.GetKeyUp(jumpAlternativeKey)) && grounded && isPreparingToJump) || forceJump)
 			{
 				isPreparingToJump = false;
 				isJumping = true;
@@ -122,6 +182,9 @@ public class PlayerController : MonoBehaviour
 		}
 	}
 
+	/* ====================================== *
+	 *              FIXED UPDATE              *
+	 * ====================================== */
 	void FixedUpdate ()
 	{
 		if (direction != new Vector3 (0, 0, 0))
@@ -137,10 +200,5 @@ public class PlayerController : MonoBehaviour
 			currentTicks = 0f;
 			currentJumpForce = minJumpForce;
 		}
-	}
-
-	private void ChangeObjectDirection(Vector3 newScale)
-	{
-		transform.localScale = newScale;
 	}
 }
