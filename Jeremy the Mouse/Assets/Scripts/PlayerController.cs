@@ -137,6 +137,7 @@ public class PlayerController : MonoBehaviour
 				if (pushObject != null)
 				{
 					pushObject.Push(transform.position);
+					anim.SetTrigger("push");
 				}
 			}
 		}
